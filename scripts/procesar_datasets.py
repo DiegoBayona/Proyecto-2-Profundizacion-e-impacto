@@ -1,27 +1,8 @@
-"""
-Procesamiento de datasets para el proyecto:
-1. Obtener/crear un dataset más ligero para Resultados Saber 11.
-2. Limpiar los datasets que están en data/.
-3. Unir los datasets para crear un dataset integrado con variables útiles.
-
-Requisitos:
-- Solo se usa pandas.
-- No se modifican archivos existentes; se crean archivos nuevos en data/procesados/.
-- No es obligatorio tener el dataset grande de Saber 11: si existe la versión
-  reducida en data/procesados, se usa directamente.
-
-Llaves de unión solicitadas:
-- MEN: CÓDIGO_MUNICIPIO
-- Resultados Saber 11: COLE_COD_MCPIO_UBICACION
-- TerriData (ambos): Código Entidad
-"""
-
 from pathlib import Path
 import pandas as pd
 
 
-
-# Rutas y configuración
+# Rutas de entrada y salida
 
 RAIZ = Path(__file__).resolve().parent.parent
 DATA = RAIZ / "data"
@@ -35,15 +16,13 @@ RUTA_TERRI_POBREZA = DATA / "TerriData_pobreza.txt"
 RUTA_TERRI_SERVICIOS = DATA / "TerriData_servicios.txt"
 
 
-# -----------------------------------------------------------------------------
-# Funciones auxiliares
-# -----------------------------------------------------------------------------
-def estandarizar_codigo_municipio(serie):
-    """Convierte códigos municipales/de entidad a texto DIVIPOLA de 5 dígitos.
 
-    - Acepta valores numéricos o texto (ej. 5001, 5001.0, '05001').
-    - Descarta códigos no válidos y códigos nacionales/departamentales (< 5001 o terminados en 000).
-    - Devuelve una Serie con strings de 5 dígitos o NaN donde no aplica.
+# Funciones auxiliares
+
+def estandarizar_codigo_municipio(serie):
+    """Pasa el código de municipio/entidad a formato DIVIPOLA de 5 dígitos.
+
+    Deja por fuera códigos inválidos y agregados nacionales/departamentales.
     """
     numerico = pd.to_numeric(serie, errors="coerce")
     # Mantener solo códigos municipales válidos (municipios en Colombia >= 05001)
@@ -56,10 +35,7 @@ def estandarizar_codigo_municipio(serie):
 
 
 def limpiar_porcentaje(serie):
-    """Convierte textos de porcentaje/valor a número (float).
-
-    Ejemplos: '56.11%' -> 56.11, '3,5' -> 3.5. Valores no convertibles quedan como NaN.
-    """
+    """Convierte valores con % o coma decimal a número (float)."""
     texto = serie.astype(str).str.strip()
     texto = texto.replace({"": pd.NA, "nan": pd.NA, "None": pd.NA, "NA": pd.NA})
     texto = texto.str.replace("%", "", regex=False)
@@ -67,15 +43,14 @@ def limpiar_porcentaje(serie):
     return pd.to_numeric(texto, errors="coerce")
 
 
-# -----------------------------------------------------------------------------
-# 1) Dataset más ligero para Resultados Saber 11
-# -----------------------------------------------------------------------------
-def crear_saber11_ligero():
-    """Obtiene la versión ligera de Saber 11 agregada por municipio y año.
 
-    - Si ya existe la versión reducida en data/procesados, la usa directamente
-      (no requiere el archivo original grande).
-    - Si no existe, la crea leyendo el archivo original por bloques (chunks).
+# 1) Dataset más ligero para Resultados Saber 11
+
+def crear_saber11_ligero():
+    """Carga el resumen de Saber 11 por municipio y año.
+
+    Si ya existe el archivo reducido en data/procesados lo reutiliza; si no,
+    lo genera desde el archivo original leyéndolo por bloques.
     """
     if RUTA_SABER11_REDUCIDO.exists():
         print(f"Usando dataset reducido de Saber 11 existente: {RUTA_SABER11_REDUCIDO}")
@@ -170,11 +145,11 @@ def crear_saber11_ligero():
     return saber11
 
 
-# -----------------------------------------------------------------------------
+
 # 2) Limpieza de datasets en data/
-# -----------------------------------------------------------------------------
+
 def limpiar_men():
-    """Limpia el dataset MEN y estandariza la llave CÓDIGO_MUNICIPIO."""
+    """Limpia el archivo del MEN y deja la llave CÓDIGO_MUNICIPIO lista para el cruce."""
     print("Limpiando dataset MEN...")
     men = pd.read_csv(RUTA_MEN, low_memory=False)
 
@@ -216,20 +191,15 @@ def limpiar_men():
 
 
 def limpiar_terridata(ruta_entrada, nombre_salida):
-    """Limpia un archivo TerriData (.txt, separado por '|').
-
-    - Estandariza la llave 'Código Entidad' a 5 dígitos municipales.
-    - Convierte 'Dato Numérico' (coma decimal) a número.
-    - Filtra filas sin llave o sin indicador/año válidos.
-    """
+    """Limpia un archivo TerriData (txt separado por '|') y guarda una versión nueva."""
     print(f"Limpiando TerriData: {ruta_entrada.name}...")
     df = pd.read_csv(ruta_entrada, sep="|", encoding="utf-8-sig", dtype=str, low_memory=False)
 
-    # Llave de unión estandarizada (Código Entidad en TerriData)
+    # Código de entidad como llave municipal
     df["codigo_municipio"] = estandarizar_codigo_municipio(df["Código Entidad"])
     df = df.dropna(subset=["codigo_municipio"]).copy()
 
-    # Limpieza de valores
+    # Año y valor numérico
     df["anio"] = pd.to_numeric(df.get("Año"), errors="coerce")
     df = df.dropna(subset=["anio"])
     df["anio"] = df["anio"].astype(int)
@@ -257,11 +227,8 @@ def limpiar_terridata(ruta_entrada, nombre_salida):
 
 
 def preparar_terridata_para_integracion(pobreza_limpio, servicios_limpio):
-    """Extrae variables útiles de TerriData para la integración.
-
-    - Pobreza: usa IPM municipal (censo) como variable estructural por municipio.
-    - Servicios: pivotea indicadores seleccionados a formato ancho por municipio-año.
-    """
+    """Saca de TerriData las variables que se van a usar en el dataset integrado."""
+    print("Preparando variables útiles de TerriData para integración...")
     print("Preparando variables útiles de TerriData para integración...")
 
     # IPM municipal (variable estructural, sin depender de un solo año)
@@ -305,18 +272,12 @@ def preparar_terridata_para_integracion(pobreza_limpio, servicios_limpio):
     return ipm_municipal, serv_wide
 
 
-# -----------------------------------------------------------------------------
-# 3) Integración de datasets
-# -----------------------------------------------------------------------------
-def integrar_datasets(men, saber11, ipm_municipal, terri_servicios_wide):
-    """Une MEN, Saber 11 y TerriData usando las llaves solicitadas.
 
-    Uniones:
-    - MEN (CÓDIGO_MUNICIPIO -> codigo_municipio) con Saber 11 (COLE_COD_MCPIO_UBICACION -> codigo_municipio)
-      por municipio y año.
-    - TerriData servicios (Código Entidad -> codigo_municipio) por municipio y año.
-    - TerriData pobreza/IPM (Código Entidad -> codigo_municipio) por municipio.
-    """
+# 3) Integración de datasets
+
+def integrar_datasets(men, saber11, ipm_municipal, terri_servicios_wide):
+    """Une MEN, Saber 11 y TerriData por municipio (y año cuando aplica)."""
+    print("Integrando datasets...")
     print("Integrando datasets...")
 
     # Base: registros municipio-año de MEN (cobertura amplia de municipios y años)
@@ -346,9 +307,9 @@ def integrar_datasets(men, saber11, ipm_municipal, terri_servicios_wide):
     return integrado
 
 
-# -----------------------------------------------------------------------------
-# Ejecución principal
-# -----------------------------------------------------------------------------
+
+# Ejecución 
+
 def main():
     saber11_ligero = crear_saber11_ligero()
     men_limpio = limpiar_men()
