@@ -6,7 +6,6 @@ from pathlib import Path
 raiz_proyecto = Path(__file__).resolve().parent.parent
 carpeta_data = raiz_proyecto / 'data'
 
-# --- AJUSTA ESTOS NOMBRES A TUS ARCHIVOS EN /data ---
 ruta_icfes_limpio = carpeta_data / 'icfes_limpio_2020_2023.csv'
 ruta_men = carpeta_data / 'MEN_ESTADISTICAS_EN_EDUCACION_EN_PREESCOLAR,_BÁSICA_Y_MEDIA_POR_MUNICIPIO_20261120.csv'
 ruta_terri_pobreza = carpeta_data / 'TerriData_pobreza.txt'
@@ -41,7 +40,7 @@ df_men = pd.read_csv(ruta_men, low_memory=False)
 df_men = limpiar_nombres_columnas(df_men)
 
 df_men['anio'] = pd.to_numeric(df_men['ANO'], errors='coerce')
-df_men = df_men[df_men['anio'].between(2020, 2023)].copy()
+df_men = df_men[df_men['anio'] == 2022].copy()
 df_men['anio'] = df_men['anio'].astype(int)
 
 df_men['codigo_divipola'] = estandarizar_divipola(df_men['CODIGO_MUNICIPIO'])
@@ -81,7 +80,7 @@ df_terri['codigo_divipola'] = estandarizar_divipola(df_terri['CODIGO_ENTIDAD'])
 df_terri = df_terri.dropna(subset=['codigo_divipola'])
 df_terri = df_terri[~df_terri['codigo_divipola'].str.endswith('000')].copy()
 
-# Limpiar valores numéricos (TerriData suele usar coma decimal)
+# Limpiar valores numéricos (coma como decimal)
 df_terri['valor'] = (   
     df_terri['DATO_NUMERICO']
     .astype(str)
@@ -94,7 +93,7 @@ df_terri['anio'] = pd.to_numeric(df_terri['ANO'], errors='coerce')
 print("Indicadores encontrados en TerriData:")
 print(df_terri['INDICADOR'].unique())
 
-# 2A. Separar IPM (dato censal 2018 que aplica como variable estructural por municipio)
+# 2A. Separar Indicador de Pobreza Multidimensional (dato censal 2018 que aplica como variable estructural por municipio)
 mask_ipm = df_terri['INDICADOR'].str.contains('Pobreza Multidimensional', case=False, na=False)
 df_ipm = (
     df_terri[mask_ipm]
