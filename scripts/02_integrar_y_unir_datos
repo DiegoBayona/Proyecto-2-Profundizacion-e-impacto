@@ -1,0 +1,170 @@
+import pandas as pd
+import numpy as np
+import unicodedata
+from pathlib import Path
+
+raiz_proyecto = Path(__file__).resolve().parent.parent
+carpeta_data = raiz_proyecto / 'data'
+
+# --- AJUSTA ESTOS NOMBRES A TUS ARCHIVOS EN /data ---
+ruta_icfes_limpio = carpeta_data / 'icfes_limpio_2020_2023.csv'
+ruta_men = carpeta_data / 'MEN_ESTADISTICAS_EN_EDUCACION_EN_PREESCOLAR,_BÁSICA_Y_MEDIA_POR_MUNICIPIO_20261120.csv'
+ruta_terri_pobreza = carpeta_data / 'TerriData_pobreza.txt'
+ruta_terri_servicios = carpeta_data / 'TerriData_servicios.txt'
+
+
+def limpiar_nombres_columnas(df):
+    """Pasa nombres de columnas a MAYÚSCULAS, sin tildes ni espacios extra."""
+    nuevos = []
+    for col in df.columns:
+        sin_tilde = ''.join(
+            c for c in unicodedata.normalize('NFD', str(col))
+            if unicodedata.category(c) != 'Mn'
+        )
+        nuevos.append(sin_tilde.upper().strip().replace(' ', '_'))
+    df.columns = nuevos
+    return df
+
+
+def estandarizar_divipola(serie):
+    """Convierte códigos municipales (>= 5001) a texto de 5 dígitos ('05001')."""
+    numerico = pd.to_numeric(serie, errors='coerce')
+    # Descarta códigos nacionales (0) o departamentales (5 a 99) antes de rellenar ceros
+    numerico = numerico.where(numerico >= 5001)
+    return numerico.dropna().astype(int).astype(str).str.zfill(5)
+
+
+
+# 1. LIMPIEZA DE ESTADÍSTICAS DEL MINISTERIO DE EDUCACIÓN
+
+df_men = pd.read_csv(ruta_men, low_memory=False)
+df_men = limpiar_nombres_columnas(df_men)
+
+df_men['anio'] = pd.to_numeric(df_men['ANO'], errors='coerce')
+df_men = df_men[df_men['anio'].between(2020, 2023)].copy()
+df_men['anio'] = df_men['anio'].astype(int)
+
+df_men['codigo_divipola'] = estandarizar_divipola(df_men['CODIGO_MUNICIPIO'])
+df_men = df_men.dropna(subset=['codigo_divipola'])
+
+# Seleccionar variables principales (incluye media si está disponible en tu descarga)
+cols_posibles_men = [
+    'codigo_divipola', 'anio', 'DEPARTAMENTO', 'MUNICIPIO',
+    'DESERCION', 'DESERCION_MEDIA', 'APROBACION', 'REPROBACION',
+    'COBERTURA_NETA', 'COBERTURA_NETA_MEDIA', 'COBERTURA_BRUTA'
+]
+cols_presentes_men = [c for c in cols_posibles_men if c in df_men.columns]
+df_men = df_men[cols_presentes_men].copy()
+
+# Asegurar que los indicadores sean numéricos y estén en escala 0 a 100
+cols_tasas = [c for c in cols_presentes_men if c not in ['codigo_divipola', 'anio', 'DEPARTAMENTO', 'MUNICIPIO']]
+for col in cols_tasas:
+    df_men[col] = pd.to_numeric(df_men[col].astype(str).str.replace(',', '.'), errors='coerce')
+    if df_men[col].median() <= 1.0:  # Si viene como proporción (0.035), pasar a porcentaje (3.5)
+        df_men[col] = df_men[col] * 100
+
+df_men = df_men.drop_duplicates(subset=['codigo_divipola', 'anio'])
+
+
+# ==============================================================================
+# 2. LIMPIEZA Y PIVOTEO DE TERRIDATA (.txt separados por '|')
+# ==============================================================================
+# Si sale error de codificación por tildes, agrega encoding='latin-1' en read_csv
+terri_pob = pd.read_csv(ruta_terri_pobreza, sep='|', low_memory=False)
+terri_ser = pd.read_csv(ruta_terri_servicios, sep='|', low_memory=False)
+
+df_terri = pd.concat([terri_pob, terri_ser], ignore_index=True)
+df_terri = limpiar_nombres_columnas(df_terri)
+
+# Filtrar solo municipios (excluir agregados departamentales o nacionales)
+df_terri['codigo_divipola'] = estandarizar_divipola(df_terri['CODIGO_ENTIDAD'])
+df_terri = df_terri.dropna(subset=['codigo_divipola'])
+df_terri = df_terri[~df_terri['codigo_divipola'].str.endswith('000')].copy()
+
+# Limpiar valores numéricos (TerriData suele usar coma decimal)
+df_terri['valor'] = (   
+    df_terri['DATO_NUMERICO']
+    .astype(str)
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+)
+df_terri['valor'] = pd.to_numeric(df_terri['valor'], errors='coerce')
+df_terri['anio'] = pd.to_numeric(df_terri['ANO'], errors='coerce')
+
+print("Indicadores encontrados en TerriData:")
+print(df_terri['INDICADOR'].unique())
+
+# 2A. Separar IPM (dato censal 2018 que aplica como variable estructural por municipio)
+mask_ipm = df_terri['INDICADOR'].str.contains('Pobreza Multidimensional', case=False, na=False)
+df_ipm = (
+    df_terri[mask_ipm]
+    .groupby('codigo_divipola', as_index=False)['valor']
+    .mean()
+    .rename(columns={'valor': 'ipm_municipal'})
+)
+
+# 2B. Pivotar indicadores anuales de servicios/conectividad (2020-2023)
+df_terri_anual = df_terri[(~mask_ipm) & (df_terri['anio'].between(2020, 2023))].copy()
+df_terri_anual['anio'] = df_terri_anual['anio'].astype(int)
+
+terri_wide = df_terri_anual.pivot_table(
+    index=['codigo_divipola', 'anio'],
+    columns='INDICADOR',
+    values='valor',
+    aggfunc='mean'
+).reset_index()
+terri_wide = limpiar_nombres_columnas(terri_wide)
+terri_wide = terri_wide.rename(columns={'CODIGO_DIVIPOLA': 'codigo_divipola', 'ANIO': 'anio'})
+
+
+# ==============================================================================
+# 3. INTEGRACIÓN DE LAS FUENTES Y VALIDACIÓN (Sección 3.2 y 3.3 del reporte)
+# ==============================================================================
+icfes_mun = pd.read_csv(ruta_icfes_limpio, dtype={'codigo_divipola': str})
+icfes_mun['anio'] = icfes_mun['anio'].astype(int)
+
+filas_base = len(df_men)
+
+# Unión 1: MEN + ICFES
+datos = pd.merge(df_men, icfes_mun, on=['codigo_divipola', 'anio'], how='left')
+
+# Unión 2: + TerriData anual (Servicios / Internet)
+datos = pd.merge(datos, terri_wide, on=['codigo_divipola', 'anio'], how='left')
+
+# Unión 3: + IPM estructural por municipio
+datos = pd.merge(datos, df_ipm, on='codigo_divipola', how='left')
+
+# Validación estricta de cardinalidad (1:1)
+assert len(datos) == filas_base, f"Error: se duplicaron filas ({filas_base} -> {len(datos)})"
+
+print("\n--- AUDITORÍA DE INTEGRACIÓN ---")
+print(f"Total registros base (Municipio-Año): {len(datos)}")
+print(f"Municipios únicos: {datos['codigo_divipola'].nunique()}")
+print(f"Sin cruce en ICFES: {datos['punt_global_prom'].isna().sum()} ({datos['punt_global_prom'].isna().mean()*100:.1f}%)")
+print(f"Sin cruce en IPM: {datos['ipm_municipal'].isna().sum()} ({datos['ipm_municipal'].isna().mean()*100:.1f}%)")
+
+
+# ==============================================================================
+# 4. VARIABLES ANALÍTICAS PARA EL DASHBOARD Y EXPORTACIÓN
+# ==============================================================================
+# Clasificación de ruralidad según porcentaje de estudiantes evaluados en zona rural
+datos['nivel_ruralidad'] = pd.cut(
+    datos['pct_evaluados_rural'],
+    bins=[-1, 25, 60, 100],
+    labels=['Urbano (<25% rural)', 'Intermedio (25-60% rural)', 'Rural (>60% rural)']
+)
+
+# Cuartiles de pobreza multidimensional (IPM)
+datos['cuartil_ipm'] = pd.qcut(
+    datos['ipm_municipal'],
+    q=4,
+    labels=['Q1 (Menor pobreza)', 'Q2', 'Q3', 'Q4 (Mayor pobreza)']
+)
+
+# Brecha del puntaje municipal frente al promedio nacional de ese mismo año
+prom_nacional_anio = datos.groupby('anio')['punt_global_prom'].transform('mean')
+datos['brecha_vs_nacional'] = datos['punt_global_prom'] - prom_nacional_anio
+
+ruta_maestro = carpeta_data / 'datos_integrados.csv'
+datos.to_csv(ruta_maestro, index=False)
+print(f"\nArchivo maestro guardado exitosamente en: {ruta_maestro}")
