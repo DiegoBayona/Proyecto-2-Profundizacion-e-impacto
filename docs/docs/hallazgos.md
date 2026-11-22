@@ -1,4 +1,4 @@
-# Etapa 2 - Hallazgos (Persona 3)
+# Etapa 2 - Hallazgos
 
 Corte principal analizado: **2022** (base de análisis tras filtros documentados), con contrastes esenciales en **2019** y **2014-2017**. Cada hallazgo distingue **observado**, **hipótesis** e **interpretación**, y se apoya en evidencia trazable de la Etapa 1.
 

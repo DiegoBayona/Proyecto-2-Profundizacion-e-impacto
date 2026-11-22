@@ -1,4 +1,4 @@
-# Etapa 3 - Limitaciones (Persona 3)
+# Etapa 3 - Limitaciones
 
 Limitaciones asociadas a los hallazgos de la Etapa 2 y consideraciones generales para lectura del dashboard/análisis. Las decisiones de filtrado y exclusión están registradas en `docs/persona3/registro_decisiones.md` y `outputs/persona3/registro_decisiones.csv`.
 

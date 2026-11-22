@@ -1,4 +1,4 @@
-# Etapa 4 - Recomendaciones (Persona 3)
+# Etapa 4 - Recomendaciones
 
 Recomendaciones trazables a hallazgos de `docs/persona3/hallazgos.md`. Se formulan con cautela para no afirmar causalidad: priorizan revisión, focalización y seguimiento con base en evidencia descriptiva.
 

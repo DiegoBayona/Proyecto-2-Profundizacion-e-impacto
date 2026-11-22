@@ -1,4 +1,4 @@
-# Coordinación y pendientes - Persona 3
+# Coordinación y pendientes
 
 ## Entregables generados (Etapa 1)
 

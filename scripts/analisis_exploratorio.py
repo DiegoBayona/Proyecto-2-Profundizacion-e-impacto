@@ -1,19 +1,11 @@
 ﻿"""
-Etapa 1 - Tablas y gráficos para Persona 3.
+Análisis exploratorio (Etapa 1, Persona 3).
 
-Genera cortes, descriptivos, comparaciones, gráficos y resúmenes para:
-- 2022 (análisis principal)
-- 2019 (replicación esencial)
-- 2014-2017 (replicación esencial por separado)
+Saca tablas, gráficos y resúmenes para 2022 (principal), 2019 y 2014-2017.
+También deja el registro de decisiones y un resumen base para los hallazgos.
 
-Salidas:
-- outputs/persona3/tablas/<corte>/*.csv
-- outputs/persona3/figuras/<corte>/*.png
-- outputs/persona3/registro_decisiones.csv
-- outputs/persona3/resumen_hallazgos_base.csv
-- docs/persona3/registro_decisiones.md
-
-El script es deliberadamente explícito y registra decisiones de filtrado/calidad.
+Salidas principales en outputs/persona3/ (tablas, figuras, CSV de apoyo) y
+docs/persona3/registro_decisiones.md.
 """
 
 from __future__ import annotations
@@ -40,16 +32,16 @@ TABLAS_ROOT = OUT_ROOT / "tablas"
 FIGURAS_ROOT = OUT_ROOT / "figuras"
 DOCS_ROOT = RAIZ / "docs" / "persona3"
 
-# Decisiones (documentadas también en registro)
-UMBRAL_MUNICIPIOS_PEQUENOS = 30  # total_evaluados < 30: se excluyen del análisis principal por ruido
+# Reglas del análisis (quedan registradas cuando corre el script)
+UMBRAL_MUNICIPIOS_PEQUENOS = 30  # menos de 30 evaluados = muy poco tamaño, se saca del análisis principal
 EXCLUIR_CEROS_SOSPECHOSOS = {
-    "DESERCION_MEDIA": True,   # 0 puede existir, pero en 2022 hay varios y se marcan como sospechosos para análisis sensible
-    "COBERTURA_NETA_MEDIA": False,  # valores 0 observados; se conservan y se reportan
-    "pct_internet_hogar": False,     # 0 posible pero extremo; se conserva y se reporta
-    "pct_evaluados_rural": False,    # 0 válido (municipio urbano)
+    "DESERCION_MEDIA": True,   # hay ceros; en 2022 los trato como sospechosos para el corte principal
+    "COBERTURA_NETA_MEDIA": False,  # se ven ceros, pero los dejo
+    "pct_internet_hogar": False,     # puede haber ceros; los dejo y se reportan
+    "pct_evaluados_rural": False,    # 0 es normal si es urbano
 }
 EXCLUIR_MAYORES_100 = {
-    "COBERTURA_NETA_MEDIA": True,  # cobertura >100 es sospechosa para comparación
+    "COBERTURA_NETA_MEDIA": True,  # >100 no cuadra bien para comparar
     "pct_internet_hogar": True,
     "pct_evaluados_rural": True,
     "DESERCION_MEDIA": True,
@@ -86,7 +78,7 @@ def resolver_columna(df: pd.DataFrame, candidatos: Iterable[str]) -> Optional[st
         nc = norm_col(cand)
         if nc in norm_map:
             return norm_map[nc]
-    # búsqueda laxa por tokens
+    # si no matchea exacto, pruebo por coincidencia parcial
     for cand in candidatos:
         nc = norm_col(cand)
         for n, orig in norm_map.items():
@@ -98,7 +90,7 @@ def resolver_columna(df: pd.DataFrame, candidatos: Iterable[str]) -> Optional[st
 def leer_dataset() -> Tuple[pd.DataFrame, Dict[str, Optional[str]]]:
     if not RUTA_DATASET.exists():
         raise FileNotFoundError(f"No se encontró {RUTA_DATASET}")
-    # intentar encodings comunes por robustez ante columnas con acentos dañados
+    # el CSV a veces viene con acentos raros; pruebo varios encodings
     last_err = None
     df = None
     for enc in ["utf-8-sig", "utf-8", "cp1252", "latin-1"]:
@@ -174,24 +166,24 @@ def registrar_decision(decisiones: List[dict], corte: str, tema: str, decision: 
 
 
 def preparar_corte_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], decisiones: List[dict]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Retorna (base_filtrada_2022, excluidos, base_con_flags)."""
+    """Arma el corte de 2022: base principal, excluidos y base con flags."""
     c_anio = colmap["anio"]
     c_punt = colmap["punt_global_prom"]
     c_eval = colmap["total_evaluados"]
     base = df[df[c_anio] == 2022].copy()
     n0 = len(base)
-    registrar_decision(decisiones, "2022", "corte_año", "Filtrar año 2022", "Se seleccionan registros con anio==2022.", len(df), n0)
+    registrar_decision(decisiones, "2022", "corte_año", "Filtrar año 2022", "Me quedo solo con filas de 2022.", len(df), n0)
 
     sin_puntaje = base[c_punt].isna() if c_punt in base.columns else pd.Series(False, index=base.index)
     excl_sin_puntaje = base[sin_puntaje].copy()
     excl_sin_puntaje["motivo_exclusion"] = "sin_puntaje_global"
     base = base[~sin_puntaje].copy()
-    registrar_decision(decisiones, "2022", "sin_puntaje", "Excluir municipios sin puntaje global", f"Se excluyen {int(sin_puntaje.sum())} registros con punt_global_prom nulo.", n0, len(base))
+    registrar_decision(decisiones, "2022", "sin_puntaje", "Sacar municipios sin puntaje global", f"Se sacan {int(sin_puntaje.sum())} filas sin punt_global_prom.", n0, len(base))
 
     antes_deps = base[colmap["departamento"]].nunique() if colmap.get("departamento") in base.columns else None
     base = aplicar_unificacion_departamentos(base, colmap.get("departamento"))
     despues_deps = base[colmap["departamento"]].nunique() if colmap.get("departamento") in base.columns else None
-    registrar_decision(decisiones, "2022", "departamentos", "Unificar nombres de departamento", f"Normalización de nombres/variantes. Departamentos únicos antes/después: {antes_deps}/{despues_deps}.", n0, len(base))
+    registrar_decision(decisiones, "2022", "departamentos", "Unificar nombres de departamento", f"Ajuste de nombres/variantes para que no queden duplicados raros. Únicos antes/después: {antes_deps}/{despues_deps}.", n0, len(base))
 
     flags = pd.DataFrame(index=base.index)
     if c_eval in base.columns:
@@ -236,8 +228,8 @@ def preparar_corte_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], deci
     excl_calidad["motivo_exclusion"] = pd.Series(motivos, index=base.index)[mask_excluir].values
     base_principal = base[~mask_excluir].copy()
 
-    registrar_decision(decisiones, "2022", "municipios_pequenos", f"Excluir municipios con menos de {UMBRAL_MUNICIPIOS_PEQUENOS} evaluados del análisis principal", "Regla por ruido muestral; excluidos conservados para sensibilidad.", n_antes_calidad, len(base_principal))
-    registrar_decision(decisiones, "2022", "valores_sospechosos", "Excluir >100 en cobertura_neta_media, internet ICFES, ruralidad y deserción", "Valores fuera de rango porcentual esperable para comparación principal; ceros de deserción tratados como sospechosos según regla.", n_antes_calidad, len(base_principal))
+    registrar_decision(decisiones, "2022", "municipios_pequenos", f"Sacar del análisis principal municipios con menos de {UMBRAL_MUNICIPIOS_PEQUENOS} evaluados", "Con pocos evaluados el dato baila mucho; los dejo guardados aparte por si toca revisar sensibilidad.", n_antes_calidad, len(base_principal))
+    registrar_decision(decisiones, "2022", "valores_sospechosos", "Sacar valores >100 en cobertura, internet ICFES, ruralidad y deserción", "Porcentajes por encima de 100 no tienen mucho sentido aquí; los ceros de deserción los traté como sospechosos según la regla definida arriba.", n_antes_calidad, len(base_principal))
 
     excluidos = pd.concat([excl_sin_puntaje, excl_calidad], ignore_index=True, sort=False)
     return base_principal, excluidos, base_flags
@@ -268,7 +260,7 @@ def resumen_descriptivo(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
 
 
 def corr_segura(df: pd.DataFrame, method: str = "pearson") -> pd.DataFrame:
-    """Calcula correlaciones con respaldo sin scipy para Spearman."""
+    # Spearman en pandas puede pedir scipy; si no está, uso ranks + Pearson
     data = df.apply(pd.to_numeric, errors="coerce")
     if method == "spearman":
         try:
@@ -324,7 +316,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
         return
     expl = get_expl_vars(colmap, df)
 
-    # Por departamento
+    # comparación por departamento
     if dep and dep in df.columns:
         agg = {punt: ["mean", "median", "count"]}
         if eval_col and eval_col in df.columns:
@@ -355,7 +347,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             plt.savefig(out_figs / "top15_departamentos_puntaje.png", dpi=150)
             plt.close()
 
-    # Por grupo de ruralidad
+    # por grupos de ruralidad
     if rural and rural in df.columns:
         tmp = df.copy()
         tmp["grupo_ruralidad"] = grupo_ruralidad(tmp[rural])
@@ -385,7 +377,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             plt.savefig(out_figs / "puntaje_por_ruralidad.png", dpi=150)
             plt.close()
 
-    # Cuartiles por variable explicativa
+    # cuartiles de cada variable explicativa
     for k, c in expl.items():
         cols_need = [punt, c] + ([eval_col] if eval_col and eval_col in df.columns else [])
         tmp = df[cols_need].copy()
@@ -414,7 +406,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             plt.savefig(out_figs / f"puntaje_por_cuartiles_{k}.png", dpi=150)
             plt.close()
 
-    # Comparación cruzada
+    # cruce ruralidad x internet (ICFES)
     if rural and rural in df.columns and expl.get("pct_internet_hogar"):
         c_int = expl["pct_internet_hogar"]
         tmp = df[[punt, rural, c_int]].dropna().copy()
@@ -429,7 +421,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             cruzada.reset_index().to_csv(out_tablas / "comparacion_cruzada_ruralidad_x_internet_media.csv", index=False, encoding="utf-8-sig")
             cruzada_count.reset_index().to_csv(out_tablas / "comparacion_cruzada_ruralidad_x_internet_n.csv", index=False, encoding="utf-8-sig")
 
-    # Correlaciones
+    # correlaciones
     corr_cols = [punt] + [c for c in expl.values() if c in df.columns]
     corr_df = df[corr_cols].apply(pd.to_numeric, errors="coerce")
     corr_segura(corr_df, method="pearson").to_csv(out_tablas / "correlaciones_pearson.csv", encoding="utf-8-sig")
@@ -482,13 +474,13 @@ def analisis_corte(df: pd.DataFrame, colmap: Dict[str, Optional[str]], nombre_co
     if punt and punt in base.columns:
         sin_punt = base[punt].isna()
         base = base[~sin_punt].copy()
-        registrar_decision(decisiones, nombre_corte, "sin_puntaje", "Excluir registros sin puntaje global", f"Excluidos {int(sin_punt.sum())} de {n0}.", n0, len(base))
+        registrar_decision(decisiones, nombre_corte, "sin_puntaje", "Quitar filas sin puntaje global", f"Quité {int(sin_punt.sum())} de {n0}.", n0, len(base))
     eval_col = colmap.get("total_evaluados")
     if eval_col and eval_col in base.columns:
         n1 = len(base)
         peq = pd.to_numeric(base[eval_col], errors="coerce") < UMBRAL_MUNICIPIOS_PEQUENOS
         base = base[~peq.fillna(False)].copy()
-        registrar_decision(decisiones, nombre_corte, "municipios_pequenos", f"Excluir total_evaluados < {UMBRAL_MUNICIPIOS_PEQUENOS}", f"Excluidos {int(peq.fillna(False).sum())} de {n1}.", n1, len(base))
+        registrar_decision(decisiones, nombre_corte, "municipios_pequenos", f"Quitar municipios con menos de {UMBRAL_MUNICIPIOS_PEQUENOS} evaluados", f"Quité {int(peq.fillna(False).sum())} de {n1}.", n1, len(base))
     for key in ["cobertura_neta_media", "pct_internet_hogar", "pct_evaluados_rural", "desercion_media"]:
         c = colmap.get(key)
         if c and c in base.columns:
@@ -496,7 +488,7 @@ def analisis_corte(df: pd.DataFrame, colmap: Dict[str, Optional[str]], nombre_co
             m = pd.to_numeric(base[c], errors="coerce") > 100
             base = base[~m.fillna(False)].copy()
             if int(m.fillna(False).sum()) > 0:
-                registrar_decision(decisiones, nombre_corte, f"gt100_{key}", f"Excluir {key} > 100", f"Excluidos {int(m.fillna(False).sum())} registros.", n1, len(base))
+                registrar_decision(decisiones, nombre_corte, f"gt100_{key}", f"Quitar {key} > 100", f"Quité {int(m.fillna(False).sum())} filas.", n1, len(base))
     base = aplicar_unificacion_departamentos(base, colmap.get("departamento"))
 
     cols_desc = [c for c in [punt, colmap.get("desercion_media"), colmap.get("cobertura_neta_media"),
@@ -541,9 +533,9 @@ def construir_resumen_hallazgos(bases: Dict[str, pd.DataFrame], colmap: Dict[str
 
 def guardar_registro_decisiones_md(decisiones: List[dict], path: Path) -> None:
     lines = [
-        "# Registro de decisiones - Persona 3",
+        "# Registro de decisiones",
         "",
-        "Cada filtro, criterio y exclusión aplicado en Etapa 1, con su razón.",
+        "Acá dejo los filtros y criterios que usé en la Etapa 1, con el porqué y cómo cambió el número de filas.",
         "",
         "| Corte | Tema | Decisión | Razón/Detalle | N antes | N después |",
         "|---|---|---|---|---:|---:|",
@@ -562,12 +554,12 @@ def main() -> None:
     df, colmap = leer_dataset()
     decisiones: List[dict] = []
 
-    registrar_decision(decisiones, "global", "columnas", "Resolver nombres de columnas con codificación irregular", json.dumps({k: v for k, v in colmap.items()}, ensure_ascii=False), None, None)
-    registrar_decision(decisiones, "global", "pendientes_persona2", "Incorporación pendiente IPM/internet TerriData si Persona 2 actualiza fuente", "dataset_integrado ya incluye ipm_municipal y variables TerriData cuando existen; re-ejecutar script tras actualización para incorporarlas al análisis.", None, None)
+    registrar_decision(decisiones, "global", "columnas", "Ajuste de nombres de columnas (encoding raro)", json.dumps({k: v for k, v in colmap.items()}, ensure_ascii=False), None, None)
+    registrar_decision(decisiones, "global", "pendientes_persona2", "Pendiente: IPM/internet TerriData si Persona 2 actualiza la fuente", "Si cambian esos datos, toca volver a correr el script para que entren en las tablas/gráficos.", None, None)
 
     bases: Dict[str, pd.DataFrame] = {}
 
-    # 2022 principal
+    # 2022 (corte principal)
     base_2022, excluidos_2022, base_2022_flags = preparar_corte_2022(df, colmap, decisiones)
     out_2022_t = TABLAS_ROOT / "2022"
     out_2022_f = FIGURAS_ROOT / "2022"
@@ -581,11 +573,11 @@ def main() -> None:
     comparaciones_2022(base_2022, colmap, out_2022_t, out_2022_f)
     bases["2022"] = base_2022
 
-    # 2019 esencial
+    # 2019 (lo esencial)
     mask_2019 = df[colmap["anio"]] == 2019 if colmap.get("anio") in df.columns else pd.Series(False, index=df.index)
     bases["2019"] = analisis_corte(df, colmap, "2019", mask_2019, decisiones)
 
-    # 2014-2017 esencial por separado y consolidado
+    # 2014-2017: cada año por separado y también consolidado
     bases_1417 = []
     for y in [2014, 2015, 2016, 2017]:
         mask_y = df[colmap["anio"]] == y if colmap.get("anio") in df.columns else pd.Series(False, index=df.index)
@@ -610,9 +602,9 @@ def main() -> None:
     guardar_tabla(pd.DataFrame(decisiones), OUT_ROOT / "registro_decisiones.csv")
     guardar_registro_decisiones_md(decisiones, DOCS_ROOT / "registro_decisiones.md")
 
-    print(f"Etapa 1 completada. Tablas/figuras en: {OUT_ROOT}")
+    print(f"Listo: tablas y figuras en {OUT_ROOT}")
     print(f"Registro de decisiones: {DOCS_ROOT / 'registro_decisiones.md'}")
-    print(f"Resumen base para hallazgos: {OUT_ROOT / 'resumen_hallazgos_base.csv'}")
+    print(f"Resumen para hallazgos: {OUT_ROOT / 'resumen_hallazgos_base.csv'}")
 
 
 if __name__ == "__main__":
