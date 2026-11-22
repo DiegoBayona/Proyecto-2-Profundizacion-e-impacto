@@ -1,0 +1,21 @@
+﻿corte,tema,decision,detalle,n_antes,n_despues
+global,columnas,Resolver nombres de columnas con codificación irregular,"{""codigo_municipio"": ""codigo_municipio"", ""anio"": ""anio"", ""municipio"": ""MUNICIPIO"", ""departamento"": ""DEPARTAMENTO"", ""punt_global_prom"": ""punt_global_prom"", ""total_evaluados"": ""total_evaluados"", ""desercion_media"": ""DESERCIÓN_MEDIA"", ""cobertura_neta_media"": ""COBERTURA_NETA_MEDIA"", ""pct_internet_hogar"": ""pct_internet_hogar"", ""pct_evaluados_rural"": ""pct_evaluados_rural"", ""ipm_municipal"": ""ipm_municipal"", ""penetracion_internet_hogares"": ""penetracion_internet_hogares"", ""penetracion_internet_fijo"": ""penetracion_internet_fijo"", ""brecha_vs_nacional"": ""brecha_punt_global_vs_nacional""}",,
+global,pendientes_persona2,Incorporación pendiente IPM/internet TerriData si Persona 2 actualiza fuente,dataset_integrado ya incluye ipm_municipal y variables TerriData cuando existen; re-ejecutar script tras actualización para incorporarlas al análisis.,,
+2022,corte_año,Filtrar año 2022,Se seleccionan registros con anio==2022.,15704.0,1121.0
+2022,sin_puntaje,Excluir municipios sin puntaje global,Se excluyen 9 registros con punt_global_prom nulo.,1121.0,1112.0
+2022,departamentos,Unificar nombres de departamento,Normalización de nombres/variantes. Departamentos únicos antes/después: 33/33.,1121.0,1112.0
+2022,municipios_pequenos,Excluir municipios con menos de 30 evaluados del análisis principal,Regla por ruido muestral; excluidos conservados para sensibilidad.,1112.0,1035.0
+2022,valores_sospechosos,"Excluir >100 en cobertura_neta_media, internet ICFES, ruralidad y deserción",Valores fuera de rango porcentual esperable para comparación principal; ceros de deserción tratados como sospechosos según regla.,1112.0,1035.0
+2019,sin_puntaje,Excluir registros sin puntaje global,Excluidos 10 de 1122.,1122.0,1112.0
+2019,municipios_pequenos,Excluir total_evaluados < 30,Excluidos 12 de 1112.,1112.0,1100.0
+2019,gt100_cobertura_neta_media,Excluir cobertura_neta_media > 100,Excluidos 4 registros.,1100.0,1096.0
+2014_2017,sin_puntaje,Excluir registros sin puntaje global,Excluidos 18 de 1122.,1122.0,1104.0
+2014_2017,municipios_pequenos,Excluir total_evaluados < 30,Excluidos 58 de 1104.,1104.0,1046.0
+2014_2017,sin_puntaje,Excluir registros sin puntaje global,Excluidos 14 de 1122.,1122.0,1108.0
+2014_2017,municipios_pequenos,Excluir total_evaluados < 30,Excluidos 64 de 1108.,1108.0,1044.0
+2014_2017,sin_puntaje,Excluir registros sin puntaje global,Excluidos 12 de 1122.,1122.0,1110.0
+2014_2017,municipios_pequenos,Excluir total_evaluados < 30,Excluidos 80 de 1110.,1110.0,1030.0
+2014_2017,gt100_cobertura_neta_media,Excluir cobertura_neta_media > 100,Excluidos 5 registros.,1030.0,1025.0
+2014_2017,sin_puntaje,Excluir registros sin puntaje global,Excluidos 11 de 1122.,1122.0,1111.0
+2014_2017,municipios_pequenos,Excluir total_evaluados < 30,Excluidos 70 de 1111.,1111.0,1041.0
+2014_2017,gt100_cobertura_neta_media,Excluir cobertura_neta_media > 100,Excluidos 4 registros.,1041.0,1037.0

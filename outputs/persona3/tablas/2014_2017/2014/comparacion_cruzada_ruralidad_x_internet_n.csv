@@ -1,0 +1,5 @@
+﻿grupo_ruralidad,Q1,Q2,Q3,Q4
+Urbano (<=20% rural),74,91,110,173
+Mixto-bajo (20-50%),117,110,114,69
+Mixto-alto (50-80%),53,45,30,19
+Rural (>80%),19,14,7,1
