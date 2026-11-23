@@ -1,40 +1,40 @@
-# Etapa 4 - Recomendaciones
+# Recomendaciones (Etapa 4)
 
-Recomendaciones trazables a hallazgos de `docs/persona3/hallazgos.md`. Se formulan con cautela para no afirmar causalidad: priorizan revisión, focalización y seguimiento con base en evidencia descriptiva.
+Estas recomendaciones salen de lo que documenté en `docs/persona3/hallazgos.md`. Las planteo con cuidado (sin hablar de causalidad): la idea es ayudar a priorizar revisiones y seguimiento con lo que muestran los datos.
 
-## R1. Priorizar la revisión focalizada de municipios con alta ruralidad de evaluados y bajo puntaje observado
+## R1. Revisar con más detalle municipios con alta ruralidad de evaluados y puntajes bajos
 
-- **Hallazgo que la respalda:** H1 (gradiente negativo por ruralidad de evaluados) y H5 (brechas territoriales amplias).
-- **Evidencia base:** En 2022, el promedio pasa de 245,01 (urbano <=20% rural) a 225,76 (rural >80%); cuartil Q4 de ruralidad promedia 228,50 vs 246,28 en Q1. Departamentos con promedios bajos concentran contextos heterogéneos que requieren lectura territorial.
+- **Se apoya en:** H1 (gradiente por ruralidad) y H5 (brechas territoriales).
+- **Evidencia:** En 2022 el promedio pasa de 245,01 (urbano <=20% rural) a 225,76 (rural >80%); el cuartil Q4 de ruralidad promedia 228,50 vs 246,28 en Q1. También hay diferencias grandes entre departamentos.
   - `outputs/persona3/tablas/2022/comparacion_por_ruralidad.csv`
   - `outputs/persona3/tablas/2022/comparacion_cuartiles_pct_evaluados_rural.csv`
   - `outputs/persona3/tablas/2022/comparacion_por_departamento.csv`
   - `outputs/persona3/figuras/2022/puntaje_por_ruralidad.png`
-- **A quién va dirigida:** Secretarías de educación departamentales/municipales, equipos de planeación educativa territorial y actores que definan estrategias de acompañamiento en zonas con mayor ruralidad de evaluados.
-- **Qué decisión apoya:** Priorizar la revisión y focalización territorial de apoyos pedagógicos, permanencia y condiciones de acceso educativo en municipios/grupos con mayor proporción de evaluados rurales y resultados promedio persistentemente bajos, contrastando con la composición y tamaño de la población evaluada.
-- **Precaución:** No implica que la ruralidad por sí sola cause el resultado; la variable mide ruralidad de evaluados y puede estar asociada a otros factores.
+- **Para quién puede servir:** Secretarías de educación (departamental/municipal) y equipos de planeación o acompañamiento territorial.
+- **Para qué decisión ayuda:** Priorizar dónde revisar apoyos pedagógicos, permanencia y condiciones de acceso en municipios/grupos con más evaluados rurales y promedios bajos, mirando también cuántos evaluados hay y su composición.
+- **Precaución:** Esto no significa que la ruralidad “cause” el resultado; la variable es sobre evaluados y puede estar mezclada con otros factores.
 
-## R2. Priorizar el análisis de brechas de conectividad educativa y contexto digital en municipios con menor acceso a internet de evaluados
+## R2. Mirar brechas de conectividad/contexto digital donde el acceso a internet de evaluados es bajo
 
-- **Hallazgo que la respalda:** H2 (asociación positiva internet ICFES-puntaje) y H5 (diferencias dentro de grupos de ruralidad según cuartil de internet).
-- **Evidencia base:** En 2022, Q1 de `pct_internet_hogar` promedia 223,41 vs 254,10 en Q4 (Pearson 0,570). En la comparación cruzada ruralidad × internet, los cuartiles altos de internet muestran mayores promedios dentro de varios grupos de ruralidad.
+- **Se apoya en:** H2 (asociación positiva internet-puntaje) y H5 (diferencias dentro de grupos de ruralidad según internet).
+- **Evidencia:** En 2022, Q1 de `pct_internet_hogar` promedia 223,41 vs 254,10 en Q4 (Pearson 0,570). En el cruce ruralidad × internet, los cuartiles altos de internet muestran mayores promedios dentro de varios grupos de ruralidad.
   - `outputs/persona3/tablas/2022/comparacion_cuartiles_pct_internet_hogar.csv`
   - `outputs/persona3/tablas/2022/comparacion_cruzada_ruralidad_x_internet_media.csv`
   - `outputs/persona3/tablas/2022/correlaciones_pearson.csv`
   - `outputs/persona3/figuras/2022/puntaje_por_cuartiles_pct_internet_hogar.png`
-- **A quién va dirigida:** Equipos de política educativa y conectividad (MEN/secretarías), programas de dotación y acceso digital, y equipos de seguimiento territorial.
-- **Qué decisión apoya:** Priorizar la revisión de municipios donde el bajo acceso a internet en hogares de evaluados coincide con menores promedios, para orientar diagnósticos de brecha digital educativa y coordinar intervenciones con evidencia local (sin asumir efecto automático).
-- **Precaución:** La medida es de evaluados ICFES y puede reflejar condiciones socioeconómicas más amplias; se recomienda complementar con indicadores TerriData de internet cuando Persona 2 consolide/actualice la fuente.
+- **Para quién puede servir:** Equipos de política educativa y conectividad (MEN/secretarías), programas de acceso digital y seguimiento territorial.
+- **Para qué decisión ayuda:** Priorizar diagnósticos de brecha digital educativa en municipios donde poco acceso a internet en hogares de evaluados coincide con promedios más bajos, contrastando con evidencia local.
+- **Precaución:** Es una medida de evaluados ICFES y puede reflejar condiciones socioeconómicas; cuando Persona 2 actualice internet TerriData, conviene complementar y volver a correr el análisis.
 
-## R3. Fortalecer el seguimiento conjunto de cobertura neta en media y deserción en municipios con señales de rezago, incorporando revisión de calidad de datos
+## R3. Hacer seguimiento conjunto de cobertura neta en media y deserción, y revisar calidad de los datos
 
-- **Hallazgo que la respalda:** H3 (asociación positiva cobertura-puntaje), H4 (asociación negativa deserción-puntaje) y limitaciones de calidad/supervivencia.
-- **Evidencia base:** En 2022, Q1 de cobertura neta media promedia 222,48 vs 249,84 en Q4 (Pearson 0,544); Q4 de deserción media promedia 229,76 vs 243,57 en Q1 (Pearson -0,277). La dirección de estas asociaciones se mantiene en 2019 y 2014-2017.
+- **Se apoya en:** H3 (cobertura y puntaje), H4 (deserción y puntaje) y las limitaciones de calidad/sesgo de supervivencia.
+- **Evidencia:** En 2022, Q1 de cobertura neta media promedia 222,48 vs 249,84 en Q4 (Pearson 0,544); Q4 de deserción media promedia 229,76 vs 243,57 en Q1 (Pearson -0,277). La dirección se mantiene en 2019 y 2014-2017.
   - `outputs/persona3/tablas/2022/comparacion_cuartiles_cobertura_neta_media.csv`
   - `outputs/persona3/tablas/2022/comparacion_cuartiles_desercion_media.csv`
   - `outputs/persona3/resumen_hallazgos_base.csv`
   - `outputs/persona3/figuras/2022/puntaje_por_cuartiles_cobertura_neta_media.png`
   - `outputs/persona3/figuras/2022/puntaje_por_cuartiles_desercion_media.png`
-- **A quién va dirigida:** Secretarías de educación, equipos de permanencia escolar y analistas de calidad de información educativa.
-- **Qué decisión apoya:** Priorizar la revisión de municipios con baja cobertura neta media y/o alta deserción junto con sus resultados Saber 11, para identificar alertas de trayectoria educativa y, en paralelo, validar registros con valores sospechosos (ceros, extremos, inconsistencias) antes de usarlos para decisiones operativas.
-- **Precaución:** La relación no es causal y puede estar afectada por sesgo de supervivencia; las recomendaciones deben leerse como apoyo a priorización y verificación, no como atribución de causa. Re-ejecutar el análisis si se actualizan IPM/internet TerriData u otros insumos de Persona 2.
+- **Para quién puede servir:** Secretarías de educación, equipos de permanencia escolar y quienes revisan calidad de información educativa.
+- **Para qué decisión ayuda:** Priorizar la revisión de municipios con baja cobertura y/o alta deserción junto con sus resultados Saber 11, y al mismo tiempo validar registros con valores sospechosos (ceros, extremos, inconsistencias) antes de tomar decisiones operativas.
+- **Precaución:** No es una relación causal y puede haber sesgo de supervivencia. Si se actualizan IPM/internet TerriData u otros insumos, toca re-ejecutar el análisis.

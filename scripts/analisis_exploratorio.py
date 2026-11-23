@@ -1,22 +1,15 @@
 ﻿"""
-Análisis exploratorio (Etapa 1, Persona 3).
+Script para el análisis exploratorio (corte 2022 y comparación con 2019 y 2014-2017).
 
-Saca tablas, gráficos y resúmenes para 2022 (principal), 2019 y 2014-2017.
-También deja el registro de decisiones y un resumen base para los hallazgos.
-
-Salidas principales en outputs/persona3/ (tablas, figuras, CSV de apoyo) y
-docs/persona3/registro_decisiones.md.
+Lee el dataset integrado, aplica filtros que fui anotando, y guarda tablas/gráficas
+en outputs/persona3/. También genera el registro de decisiones y un resumen base.
 """
-
-from __future__ import annotations
 
 import json
 import unicodedata
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
 
 import matplotlib
-
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,31 +17,29 @@ import pandas as pd
 
 
 RAIZ = Path(__file__).resolve().parent.parent
-DATA_PROCESADOS = RAIZ / "data" / "procesados"
-RUTA_DATASET = DATA_PROCESADOS / "dataset_integrado.csv"
-
+RUTA_DATASET = RAIZ / "data" / "procesados" / "dataset_integrado.csv"
 OUT_ROOT = RAIZ / "outputs" / "persona3"
 TABLAS_ROOT = OUT_ROOT / "tablas"
 FIGURAS_ROOT = OUT_ROOT / "figuras"
 DOCS_ROOT = RAIZ / "docs" / "persona3"
 
-# Reglas del análisis (quedan registradas cuando corre el script)
-UMBRAL_MUNICIPIOS_PEQUENOS = 30  # menos de 30 evaluados = muy poco tamaño, se saca del análisis principal
+# criterios que usé (los dejo acá para tenerlos claros)
+UMBRAL_MUNICIPIOS_PEQUENOS = 30
 EXCLUIR_CEROS_SOSPECHOSOS = {
-    "DESERCION_MEDIA": True,   # hay ceros; en 2022 los trato como sospechosos para el corte principal
-    "COBERTURA_NETA_MEDIA": False,  # se ven ceros, pero los dejo
-    "pct_internet_hogar": False,     # puede haber ceros; los dejo y se reportan
-    "pct_evaluados_rural": False,    # 0 es normal si es urbano
+    "DESERCION_MEDIA": True,
+    "COBERTURA_NETA_MEDIA": False,
+    "pct_internet_hogar": False,
+    "pct_evaluados_rural": False,
 }
 EXCLUIR_MAYORES_100 = {
-    "COBERTURA_NETA_MEDIA": True,  # >100 no cuadra bien para comparar
+    "COBERTURA_NETA_MEDIA": True,
     "pct_internet_hogar": True,
     "pct_evaluados_rural": True,
     "DESERCION_MEDIA": True,
 }
 
 
-def asegurar_directorios() -> None:
+def asegurar_directorios():
     for sub in ["2022", "2019", "2014_2017"]:
         (TABLAS_ROOT / sub).mkdir(parents=True, exist_ok=True)
         (FIGURAS_ROOT / sub).mkdir(parents=True, exist_ok=True)
@@ -56,14 +47,13 @@ def asegurar_directorios() -> None:
     DOCS_ROOT.mkdir(parents=True, exist_ok=True)
 
 
-def strip_accents(text: str) -> str:
-    text = str(text)
-    nfkd = unicodedata.normalize("NFKD", text)
+def strip_accents(text):
+    nfkd = unicodedata.normalize("NFKD", str(text))
     return "".join(c for c in nfkd if not unicodedata.combining(c))
 
 
-def norm_col(text: str) -> str:
-    t = strip_accents(str(text)).upper()
+def norm_col(text):
+    t = strip_accents(text).upper()
     for ch in [" ", "-", "/", ".", "%", ",", ":", "\ufffd", "�", "\x93", "\x94"]:
         t = t.replace(ch, "_")
     while "__" in t:
@@ -71,14 +61,13 @@ def norm_col(text: str) -> str:
     return t.strip("_")
 
 
-def resolver_columna(df: pd.DataFrame, candidatos: Iterable[str]) -> Optional[str]:
-    cols = list(df.columns)
-    norm_map = {norm_col(c): c for c in cols}
+def resolver_columna(df, candidatos):
+    norm_map = {norm_col(c): c for c in df.columns}
     for cand in candidatos:
         nc = norm_col(cand)
         if nc in norm_map:
             return norm_map[nc]
-    # si no matchea exacto, pruebo por coincidencia parcial
+    # por si no coincide exacto
     for cand in candidatos:
         nc = norm_col(cand)
         for n, orig in norm_map.items():
@@ -87,12 +76,12 @@ def resolver_columna(df: pd.DataFrame, candidatos: Iterable[str]) -> Optional[st
     return None
 
 
-def leer_dataset() -> Tuple[pd.DataFrame, Dict[str, Optional[str]]]:
+def leer_dataset():
     if not RUTA_DATASET.exists():
-        raise FileNotFoundError(f"No se encontró {RUTA_DATASET}")
-    # el CSV a veces viene con acentos raros; pruebo varios encodings
-    last_err = None
+        raise FileNotFoundError(f"No encontré {RUTA_DATASET}")
+
     df = None
+    last_err = None
     for enc in ["utf-8-sig", "utf-8", "cp1252", "latin-1"]:
         try:
             df = pd.read_csv(RUTA_DATASET, dtype={"codigo_municipio": str}, encoding=enc)
@@ -101,6 +90,7 @@ def leer_dataset() -> Tuple[pd.DataFrame, Dict[str, Optional[str]]]:
             last_err = e
     if df is None:
         raise last_err
+
     colmap = {
         "codigo_municipio": resolver_columna(df, ["codigo_municipio"]),
         "anio": resolver_columna(df, ["anio", "AÑO", "ANO"]),
@@ -117,21 +107,27 @@ def leer_dataset() -> Tuple[pd.DataFrame, Dict[str, Optional[str]]]:
         "penetracion_internet_fijo": resolver_columna(df, ["penetracion_internet_fijo"]),
         "brecha_vs_nacional": resolver_columna(df, ["brecha_punt_global_vs_nacional"]),
     }
-    for k in ["anio", "punt_global_prom", "total_evaluados", "desercion_media", "cobertura_neta_media",
-              "pct_internet_hogar", "pct_evaluados_rural", "ipm_municipal",
-              "penetracion_internet_hogares", "penetracion_internet_fijo", "brecha_vs_nacional"]:
+
+    numericas = [
+        "anio", "punt_global_prom", "total_evaluados", "desercion_media", "cobertura_neta_media",
+        "pct_internet_hogar", "pct_evaluados_rural", "ipm_municipal",
+        "penetracion_internet_hogares", "penetracion_internet_fijo", "brecha_vs_nacional",
+    ]
+    for k in numericas:
         c = colmap.get(k)
         if c and c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
+
     if colmap.get("anio") and colmap["anio"] in df.columns:
         df[colmap["anio"]] = df[colmap["anio"]].astype("Int64")
+
     return df, colmap
 
 
-def unificar_departamento(nombre: object) -> object:
+def unificar_departamento(nombre):
     if pd.isna(nombre):
         return nombre
-    t = strip_accents(str(nombre)).upper().strip()
+    t = strip_accents(nombre).upper().strip()
     reemplazos = {
         "BOGOTA, D.C.": "BOGOTÁ, D.C.",
         "BOGOTA D.C.": "BOGOTÁ, D.C.",
@@ -145,7 +141,7 @@ def unificar_departamento(nombre: object) -> object:
     return " ".join(str(nombre).strip().split())
 
 
-def aplicar_unificacion_departamentos(df: pd.DataFrame, col_dep: Optional[str]) -> pd.DataFrame:
+def aplicar_unificacion_departamentos(df, col_dep):
     if not col_dep or col_dep not in df.columns:
         return df
     df = df.copy()
@@ -154,7 +150,7 @@ def aplicar_unificacion_departamentos(df: pd.DataFrame, col_dep: Optional[str]) 
     return df
 
 
-def registrar_decision(decisiones: List[dict], corte: str, tema: str, decision: str, detalle: str, n_antes: int = None, n_despues: int = None) -> None:
+def registrar_decision(decisiones, corte, tema, decision, detalle, n_antes=None, n_despues=None):
     decisiones.append({
         "corte": corte,
         "tema": tema,
@@ -165,11 +161,11 @@ def registrar_decision(decisiones: List[dict], corte: str, tema: str, decision: 
     })
 
 
-def preparar_corte_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], decisiones: List[dict]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Arma el corte de 2022: base principal, excluidos y base con flags."""
+def preparar_corte_2022(df, colmap, decisiones):
     c_anio = colmap["anio"]
     c_punt = colmap["punt_global_prom"]
     c_eval = colmap["total_evaluados"]
+
     base = df[df[c_anio] == 2022].copy()
     n0 = len(base)
     registrar_decision(decisiones, "2022", "corte_año", "Filtrar año 2022", "Me quedo solo con filas de 2022.", len(df), n0)
@@ -188,10 +184,13 @@ def preparar_corte_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], deci
     flags = pd.DataFrame(index=base.index)
     if c_eval in base.columns:
         flags["flag_municipio_pequeno"] = pd.to_numeric(base[c_eval], errors="coerce") < UMBRAL_MUNICIPIOS_PEQUENOS
-    for key, col in [("desercion_media", colmap.get("desercion_media")),
-                     ("cobertura_neta_media", colmap.get("cobertura_neta_media")),
-                     ("pct_internet_hogar", colmap.get("pct_internet_hogar")),
-                     ("pct_evaluados_rural", colmap.get("pct_evaluados_rural"))]:
+
+    for key, col in [
+        ("desercion_media", colmap.get("desercion_media")),
+        ("cobertura_neta_media", colmap.get("cobertura_neta_media")),
+        ("pct_internet_hogar", colmap.get("pct_internet_hogar")),
+        ("pct_evaluados_rural", colmap.get("pct_evaluados_rural")),
+    ]:
         if not col or col not in base.columns:
             continue
         s = pd.to_numeric(base[col], errors="coerce")
@@ -204,13 +203,18 @@ def preparar_corte_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], deci
     n_antes_calidad = len(base)
     mask_excluir = pd.Series(False, index=base.index)
     motivos = pd.Series("", index=base.index, dtype=object)
+
     if c_eval in base.columns:
         m_peq = pd.to_numeric(base[c_eval], errors="coerce") < UMBRAL_MUNICIPIOS_PEQUENOS
         mask_excluir |= m_peq.fillna(False)
         motivos = np.where(m_peq.fillna(False), np.where(motivos == "", "municipio_pequeno", motivos + ";municipio_pequeno"), motivos)
 
-    for key_const, col_key in [("DESERCION_MEDIA", "desercion_media"), ("COBERTURA_NETA_MEDIA", "cobertura_neta_media"),
-                               ("pct_internet_hogar", "pct_internet_hogar"), ("pct_evaluados_rural", "pct_evaluados_rural")]:
+    for key_const, col_key in [
+        ("DESERCION_MEDIA", "desercion_media"),
+        ("COBERTURA_NETA_MEDIA", "cobertura_neta_media"),
+        ("pct_internet_hogar", "pct_internet_hogar"),
+        ("pct_evaluados_rural", "pct_evaluados_rural"),
+    ]:
         col = colmap.get(col_key)
         if not col or col not in base.columns:
             continue
@@ -234,17 +238,16 @@ def preparar_corte_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], deci
     excluidos = pd.concat([excl_sin_puntaje, excl_calidad], ignore_index=True, sort=False)
     return base_principal, excluidos, base_flags
 
-
-def resumen_descriptivo(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
-    rows = []
+def resumen_descriptivo(df, cols):
+    filas = []
     for c in cols:
         if c not in df.columns:
             continue
         s = pd.to_numeric(df[c], errors="coerce")
         if s.notna().sum() == 0:
-            rows.append({"variable": c, "n": 0, "n_missing": int(s.isna().sum())})
+            filas.append({"variable": c, "n": 0, "n_missing": int(s.isna().sum())})
             continue
-        rows.append({
+        filas.append({
             "variable": c,
             "n": int(s.notna().sum()),
             "n_missing": int(s.isna().sum()),
@@ -256,22 +259,21 @@ def resumen_descriptivo(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
             "p75": s.quantile(0.75),
             "max": s.max(),
         })
-    return pd.DataFrame(rows)
+    return pd.DataFrame(filas)
 
 
-def corr_segura(df: pd.DataFrame, method: str = "pearson") -> pd.DataFrame:
-    # Spearman en pandas puede pedir scipy; si no está, uso ranks + Pearson
+def corr_segura(df, method="pearson"):
+    # pandas a veces pide scipy para spearman, así que ahí uso ranks
     data = df.apply(pd.to_numeric, errors="coerce")
     if method == "spearman":
         try:
             return data.corr(method="spearman")
         except Exception:
-            ranked = data.rank(method="average")
-            return ranked.corr(method="pearson")
+            return data.rank(method="average").corr(method="pearson")
     return data.corr(method=method)
 
 
-def corr_series_segura(a: pd.Series, b: pd.Series, method: str = "pearson"):
+def corr_series_segura(a, b, method="pearson"):
     sa = pd.to_numeric(a, errors="coerce")
     sb = pd.to_numeric(b, errors="coerce")
     tmp = pd.concat([sa, sb], axis=1).dropna()
@@ -285,18 +287,18 @@ def corr_series_segura(a: pd.Series, b: pd.Series, method: str = "pearson"):
     return tmp.iloc[:, 0].corr(tmp.iloc[:, 1], method=method)
 
 
-def guardar_tabla(df: pd.DataFrame, path: Path) -> None:
+def guardar_tabla(df, path):
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, index=False, encoding="utf-8-sig")
 
 
-def grupo_ruralidad(serie: pd.Series) -> pd.Series:
+def grupo_ruralidad(serie):
     bins = [-0.01, 20, 50, 80, 100.01]
     labels = ["Urbano (<=20% rural)", "Mixto-bajo (20-50%)", "Mixto-alto (50-80%)", "Rural (>80%)"]
     return pd.cut(pd.to_numeric(serie, errors="coerce"), bins=bins, labels=labels)
 
 
-def get_expl_vars(colmap: Dict[str, Optional[str]], df: pd.DataFrame) -> Dict[str, str]:
+def get_expl_vars(colmap, df):
     expl = {
         "desercion_media": colmap.get("desercion_media"),
         "cobertura_neta_media": colmap.get("cobertura_neta_media"),
@@ -306,9 +308,8 @@ def get_expl_vars(colmap: Dict[str, Optional[str]], df: pd.DataFrame) -> Dict[st
     return {k: v for k, v in expl.items() if v and v in df.columns}
 
 
-def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_tablas: Path, out_figs: Path) -> None:
+def comparaciones_2022(df, colmap, out_tablas, out_figs, detallado=True):
     dep = colmap.get("departamento")
-    mun = colmap.get("municipio")
     punt = colmap.get("punt_global_prom")
     rural = colmap.get("pct_evaluados_rural")
     eval_col = colmap.get("total_evaluados")
@@ -316,7 +317,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
         return
     expl = get_expl_vars(colmap, df)
 
-    # comparación por departamento
+    # por departamento
     if dep and dep in df.columns:
         agg = {punt: ["mean", "median", "count"]}
         if eval_col and eval_col in df.columns:
@@ -335,7 +336,8 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
         for k, c in expl.items():
             dep_tab[f"{k}_media"] = df.groupby(dep, dropna=False)[c].mean().values
         dep_tab = dep_tab.sort_values("punt_global_promedio", ascending=False)
-        guardar_tabla(dep_tab, out_tablas / "comparacion_por_departamento.csv")
+        if detallado:
+            guardar_tabla(dep_tab, out_tablas / "comparacion_por_departamento.csv")
 
         top = dep_tab.dropna(subset=["punt_global_promedio"]).head(15)
         if not top.empty:
@@ -347,7 +349,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             plt.savefig(out_figs / "top15_departamentos_puntaje.png", dpi=150)
             plt.close()
 
-    # por grupos de ruralidad
+    # por ruralidad
     if rural and rural in df.columns:
         tmp = df.copy()
         tmp["grupo_ruralidad"] = grupo_ruralidad(tmp[rural])
@@ -377,7 +379,7 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             plt.savefig(out_figs / "puntaje_por_ruralidad.png", dpi=150)
             plt.close()
 
-    # cuartiles de cada variable explicativa
+    # cuartiles por variable
     for k, c in expl.items():
         cols_need = [punt, c] + ([eval_col] if eval_col and eval_col in df.columns else [])
         tmp = df[cols_need].copy()
@@ -395,7 +397,8 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             punt_global_promedio=(punt, "mean"),
             punt_global_mediana=(punt, "median"),
         ).reset_index()
-        guardar_tabla(qtab, out_tablas / f"comparacion_cuartiles_{k}.csv")
+        if detallado:
+            guardar_tabla(qtab, out_tablas / f"comparacion_cuartiles_{k}.csv")
         if not qtab.empty:
             plt.figure(figsize=(6.5, 4))
             plt.bar(qtab[f"cuartil_{k}"].astype(str), qtab["punt_global_promedio"], color="#C44E52")
@@ -406,8 +409,8 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
             plt.savefig(out_figs / f"puntaje_por_cuartiles_{k}.png", dpi=150)
             plt.close()
 
-    # cruce ruralidad x internet (ICFES)
-    if rural and rural in df.columns and expl.get("pct_internet_hogar"):
+    # cruce ruralidad x internet
+    if detallado and rural and rural in df.columns and expl.get("pct_internet_hogar"):
         c_int = expl["pct_internet_hogar"]
         tmp = df[[punt, rural, c_int]].dropna().copy()
         if len(tmp) >= 20:
@@ -464,23 +467,25 @@ def comparaciones_2022(df: pd.DataFrame, colmap: Dict[str, Optional[str]], out_t
         plt.savefig(out_figs / fname, dpi=150)
         plt.close()
 
-
-def analisis_corte(df: pd.DataFrame, colmap: Dict[str, Optional[str]], nombre_corte: str, mask: pd.Series, decisiones: List[dict]) -> pd.DataFrame:
+def analisis_corte(df, colmap, nombre_corte, mask, decisiones, detallado=False):
     out_tablas = TABLAS_ROOT / nombre_corte
     out_figs = FIGURAS_ROOT / nombre_corte
     base = df.loc[mask].copy()
     punt = colmap.get("punt_global_prom")
+
     n0 = len(base)
     if punt and punt in base.columns:
         sin_punt = base[punt].isna()
         base = base[~sin_punt].copy()
         registrar_decision(decisiones, nombre_corte, "sin_puntaje", "Quitar filas sin puntaje global", f"Quité {int(sin_punt.sum())} de {n0}.", n0, len(base))
+
     eval_col = colmap.get("total_evaluados")
     if eval_col and eval_col in base.columns:
         n1 = len(base)
         peq = pd.to_numeric(base[eval_col], errors="coerce") < UMBRAL_MUNICIPIOS_PEQUENOS
         base = base[~peq.fillna(False)].copy()
         registrar_decision(decisiones, nombre_corte, "municipios_pequenos", f"Quitar municipios con menos de {UMBRAL_MUNICIPIOS_PEQUENOS} evaluados", f"Quité {int(peq.fillna(False).sum())} de {n1}.", n1, len(base))
+
     for key in ["cobertura_neta_media", "pct_internet_hogar", "pct_evaluados_rural", "desercion_media"]:
         c = colmap.get(key)
         if c and c in base.columns:
@@ -489,21 +494,31 @@ def analisis_corte(df: pd.DataFrame, colmap: Dict[str, Optional[str]], nombre_co
             base = base[~m.fillna(False)].copy()
             if int(m.fillna(False).sum()) > 0:
                 registrar_decision(decisiones, nombre_corte, f"gt100_{key}", f"Quitar {key} > 100", f"Quité {int(m.fillna(False).sum())} filas.", n1, len(base))
+
     base = aplicar_unificacion_departamentos(base, colmap.get("departamento"))
 
-    cols_desc = [c for c in [punt, colmap.get("desercion_media"), colmap.get("cobertura_neta_media"),
-                             colmap.get("pct_internet_hogar"), colmap.get("pct_evaluados_rural"), colmap.get("total_evaluados")] if c and c in base.columns]
+    cols_desc = [c for c in [
+        punt,
+        colmap.get("desercion_media"),
+        colmap.get("cobertura_neta_media"),
+        colmap.get("pct_internet_hogar"),
+        colmap.get("pct_evaluados_rural"),
+        colmap.get("total_evaluados"),
+    ] if c and c in base.columns]
+
     guardar_tabla(resumen_descriptivo(base, cols_desc), out_tablas / "descriptiva_variables_clave.csv")
-    comparaciones_2022(base, colmap, out_tablas, out_figs)
-    guardar_tabla(base, out_tablas / "base_analisis.csv")
+    comparaciones_2022(base, colmap, out_tablas, out_figs, detallado=detallado)
+    if detallado:
+        guardar_tabla(base, out_tablas / "base_analisis.csv")
     return base
 
 
-def construir_resumen_hallazgos(bases: Dict[str, pd.DataFrame], colmap: Dict[str, Optional[str]]) -> pd.DataFrame:
+def construir_resumen_hallazgos(bases, colmap):
     rows = []
     punt = colmap.get("punt_global_prom")
     if not punt:
         return pd.DataFrame(rows)
+
     for nombre, df in bases.items():
         if df is None or df.empty or punt not in df.columns:
             continue
@@ -531,8 +546,8 @@ def construir_resumen_hallazgos(bases: Dict[str, pd.DataFrame], colmap: Dict[str
     return pd.DataFrame(rows)
 
 
-def guardar_registro_decisiones_md(decisiones: List[dict], path: Path) -> None:
-    lines = [
+def guardar_registro_decisiones_md(decisiones, path):
+    lineas = [
         "# Registro de decisiones",
         "",
         "Acá dejo los filtros y criterios que usé en la Etapa 1, con el porqué y cómo cambió el número de filas.",
@@ -542,48 +557,54 @@ def guardar_registro_decisiones_md(decisiones: List[dict], path: Path) -> None:
     ]
     for d in decisiones:
         detalle = str(d.get("detalle", "")).replace("|", "/").replace("\n", " ")
-        lines.append(
+        lineas.append(
             f"| {d.get('corte','')} | {d.get('tema','')} | {d.get('decision','')} | {detalle} | "
             f"{'' if d.get('n_antes') is None else d.get('n_antes')} | {'' if d.get('n_despues') is None else d.get('n_despues')} |"
         )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path.write_text("\n".join(lineas) + "\n", encoding="utf-8")
 
 
-def main() -> None:
+def main():
     asegurar_directorios()
     df, colmap = leer_dataset()
-    decisiones: List[dict] = []
+    decisiones = []
 
     registrar_decision(decisiones, "global", "columnas", "Ajuste de nombres de columnas (encoding raro)", json.dumps({k: v for k, v in colmap.items()}, ensure_ascii=False), None, None)
     registrar_decision(decisiones, "global", "pendientes_persona2", "Pendiente: IPM/internet TerriData si Persona 2 actualiza la fuente", "Si cambian esos datos, toca volver a correr el script para que entren en las tablas/gráficos.", None, None)
 
-    bases: Dict[str, pd.DataFrame] = {}
+    bases = {}
 
-    # 2022 (corte principal)
+    # 2022 principal
     base_2022, excluidos_2022, base_2022_flags = preparar_corte_2022(df, colmap, decisiones)
     out_2022_t = TABLAS_ROOT / "2022"
     out_2022_f = FIGURAS_ROOT / "2022"
     guardar_tabla(excluidos_2022, out_2022_t / "excluidos_y_motivos.csv")
     guardar_tabla(base_2022_flags, out_2022_t / "base_2022_con_flags_calidad.csv")
-    cols_desc_2022 = [c for c in [colmap.get("punt_global_prom"), colmap.get("desercion_media"), colmap.get("cobertura_neta_media"),
-                                  colmap.get("pct_internet_hogar"), colmap.get("pct_evaluados_rural"), colmap.get("total_evaluados")]
-                      if c and c in base_2022.columns]
+
+    cols_desc_2022 = [c for c in [
+        colmap.get("punt_global_prom"),
+        colmap.get("desercion_media"),
+        colmap.get("cobertura_neta_media"),
+        colmap.get("pct_internet_hogar"),
+        colmap.get("pct_evaluados_rural"),
+        colmap.get("total_evaluados"),
+    ] if c and c in base_2022.columns]
+
     guardar_tabla(resumen_descriptivo(base_2022, cols_desc_2022), out_2022_t / "descriptiva_variables_clave.csv")
     guardar_tabla(base_2022, out_2022_t / "base_analisis.csv")
-    comparaciones_2022(base_2022, colmap, out_2022_t, out_2022_f)
+    comparaciones_2022(base_2022, colmap, out_2022_t, out_2022_f, detallado=True)
     bases["2022"] = base_2022
 
-    # 2019 (lo esencial)
+    # 2019
     mask_2019 = df[colmap["anio"]] == 2019 if colmap.get("anio") in df.columns else pd.Series(False, index=df.index)
-    bases["2019"] = analisis_corte(df, colmap, "2019", mask_2019, decisiones)
+    bases["2019"] = analisis_corte(df, colmap, "2019", mask_2019, decisiones, detallado=False)
 
-    # 2014-2017 consolidado (un solo corte para facilitar la presentación)
-    mask_1417 = (
-        df[colmap["anio"]].isin([2014, 2015, 2016, 2017])
-        if colmap.get("anio") in df.columns
-        else pd.Series(False, index=df.index)
-    )
-    bases["2014_2017"] = analisis_corte(df, colmap, "2014_2017", mask_1417, decisiones)
+    # 2014-2017 consolidado
+    if colmap.get("anio") in df.columns:
+        mask_1417 = df[colmap["anio"]].isin([2014, 2015, 2016, 2017])
+    else:
+        mask_1417 = pd.Series(False, index=df.index)
+    bases["2014_2017"] = analisis_corte(df, colmap, "2014_2017", mask_1417, decisiones, detallado=False)
 
     resumen = construir_resumen_hallazgos(bases, colmap)
     guardar_tabla(resumen, OUT_ROOT / "resumen_hallazgos_base.csv")
