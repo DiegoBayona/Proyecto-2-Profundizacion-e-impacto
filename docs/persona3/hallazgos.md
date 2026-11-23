@@ -47,5 +47,5 @@ Corte principal analizado: **2022** (base de análisis tras filtros documentados
 ## Nota de consistencia temporal (apoyo a Etapa 1)
 
 - **Observado:** La dirección de las asociaciones con puntaje se mantiene entre 2019, 2014-2017 y 2022 para las cuatro variables explicativas principales (cobertura e internet positivas; ruralidad y deserción negativas), con cambios en magnitud.
-- **Evidencia:** `outputs/persona3/resumen_hallazgos_base.csv`, tablas/figuras en `outputs/persona3/tablas/2019/`, `outputs/persona3/figuras/2019/`, `outputs/persona3/tablas/2014_2017/`, `outputs/persona3/figuras/2014_2017/` y subcarpetas por año.
+- **Evidencia:** `outputs/persona3/resumen_hallazgos_base.csv`, tablas/figuras en `outputs/persona3/tablas/2019/`, `outputs/persona3/figuras/2019/`, `outputs/persona3/tablas/2014_2017/` y `outputs/persona3/figuras/2014_2017/` (periodo consolidado).
 - **Interpretación:** Los patrones de 2022 no parecen un artefacto aislado de un solo corte, aunque no implican estabilidad causal ni comparabilidad perfecta entre años.

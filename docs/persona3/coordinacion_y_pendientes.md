@@ -3,8 +3,8 @@
 ## Entregables generados (Etapa 1)
 
 - **Script ejecutable de principio a fin:** `scripts/analisis_exploratorio.py`
-- **Tablas:** `outputs/persona3/tablas/` (subcarpetas `2022/`, `2019/`, `2014_2017/` y `2014_2017/<anio>/`)
-- **Figuras:** `outputs/persona3/figuras/` (subcarpetas `2022/`, `2019/`, `2014_2017/` y `2014_2017/<anio>/`)
+- **Tablas:** `outputs/persona3/tablas/` (subcarpetas `2022/`, `2019/`, `2014_2017/`)
+- **Figuras:** `outputs/persona3/figuras/` (subcarpetas `2022/`, `2019/`, `2014_2017/`)
 - **Bases y control de calidad (2022):** `outputs/persona3/tablas/2022/base_analisis.csv`, `base_2022_con_flags_calidad.csv`, `excluidos_y_motivos.csv`
 - **Registro de decisiones:** `docs/persona3/registro_decisiones.md`, `outputs/persona3/registro_decisiones.csv`
 - **Resumen cuantitativo base para hallazgos:** `outputs/persona3/resumen_hallazgos_base.csv`
@@ -35,5 +35,5 @@ Tablas recomendadas para soporte/filtros en dashboard: `comparacion_por_departam
 ## Decisiones clave aplicadas (resumen)
 
 - 2022: excluidos 9 municipios sin puntaje global; exclusión de `total_evaluados < 30` y valores >100 en variables porcentuales clave del análisis principal; unificación de nombres de departamento; exclusiones y flags conservados en archivos de control.
-- Replicación esencial: 2019 y 2014-2017 con mismos criterios principales de filtrado por puntaje, tamaño muestral y rangos >100.
+- Replicación esencial: 2019 y 2014-2017 (periodo consolidado) con mismos criterios principales de filtrado por puntaje, tamaño muestral y rangos >100.
 - Detalle completo: `docs/persona3/registro_decisiones.md`.

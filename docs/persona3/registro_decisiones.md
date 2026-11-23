@@ -14,13 +14,6 @@ Acá dejo los filtros y criterios que usé en la Etapa 1, con el porqué y cómo
 | 2019 | sin_puntaje | Quitar filas sin puntaje global | Quité 10 de 1122. | 1122 | 1112 |
 | 2019 | municipios_pequenos | Quitar municipios con menos de 30 evaluados | Quité 12 de 1112. | 1112 | 1100 |
 | 2019 | gt100_cobertura_neta_media | Quitar cobertura_neta_media > 100 | Quité 4 filas. | 1100 | 1096 |
-| 2014_2017 | sin_puntaje | Quitar filas sin puntaje global | Quité 18 de 1122. | 1122 | 1104 |
-| 2014_2017 | municipios_pequenos | Quitar municipios con menos de 30 evaluados | Quité 58 de 1104. | 1104 | 1046 |
-| 2014_2017 | sin_puntaje | Quitar filas sin puntaje global | Quité 14 de 1122. | 1122 | 1108 |
-| 2014_2017 | municipios_pequenos | Quitar municipios con menos de 30 evaluados | Quité 64 de 1108. | 1108 | 1044 |
-| 2014_2017 | sin_puntaje | Quitar filas sin puntaje global | Quité 12 de 1122. | 1122 | 1110 |
-| 2014_2017 | municipios_pequenos | Quitar municipios con menos de 30 evaluados | Quité 80 de 1110. | 1110 | 1030 |
-| 2014_2017 | gt100_cobertura_neta_media | Quitar cobertura_neta_media > 100 | Quité 5 filas. | 1030 | 1025 |
-| 2014_2017 | sin_puntaje | Quitar filas sin puntaje global | Quité 11 de 1122. | 1122 | 1111 |
-| 2014_2017 | municipios_pequenos | Quitar municipios con menos de 30 evaluados | Quité 70 de 1111. | 1111 | 1041 |
-| 2014_2017 | gt100_cobertura_neta_media | Quitar cobertura_neta_media > 100 | Quité 4 filas. | 1041 | 1037 |
+| 2014_2017 | sin_puntaje | Quitar filas sin puntaje global | Quité 55 de 4488. | 4488 | 4433 |
+| 2014_2017 | municipios_pequenos | Quitar municipios con menos de 30 evaluados | Quité 272 de 4433. | 4433 | 4161 |
+| 2014_2017 | gt100_cobertura_neta_media | Quitar cobertura_neta_media > 100 | Quité 9 filas. | 4161 | 4152 |

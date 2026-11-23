@@ -577,25 +577,13 @@ def main() -> None:
     mask_2019 = df[colmap["anio"]] == 2019 if colmap.get("anio") in df.columns else pd.Series(False, index=df.index)
     bases["2019"] = analisis_corte(df, colmap, "2019", mask_2019, decisiones)
 
-    # 2014-2017: cada año por separado y también consolidado
-    bases_1417 = []
-    for y in [2014, 2015, 2016, 2017]:
-        mask_y = df[colmap["anio"]] == y if colmap.get("anio") in df.columns else pd.Series(False, index=df.index)
-        b = analisis_corte(df, colmap, "2014_2017", mask_y, decisiones)
-        b = b.copy()
-        b["_anio_corte"] = y
-        guardar_tabla(b, TABLAS_ROOT / "2014_2017" / f"base_analisis_{y}.csv")
-        year_t = TABLAS_ROOT / "2014_2017" / str(y)
-        year_f = FIGURAS_ROOT / "2014_2017" / str(y)
-        year_t.mkdir(parents=True, exist_ok=True)
-        year_f.mkdir(parents=True, exist_ok=True)
-        comparaciones_2022(b, colmap, year_t, year_f)
-        guardar_tabla(resumen_descriptivo(b, [c for c in cols_desc_2022 if c in b.columns]), year_t / "descriptiva_variables_clave.csv")
-        bases_1417.append(b)
-    if bases_1417:
-        base_1417 = pd.concat(bases_1417, ignore_index=True, sort=False)
-        bases["2014_2017"] = base_1417
-        guardar_tabla(base_1417, TABLAS_ROOT / "2014_2017" / "base_analisis_consolidada.csv")
+    # 2014-2017 consolidado (un solo corte para facilitar la presentación)
+    mask_1417 = (
+        df[colmap["anio"]].isin([2014, 2015, 2016, 2017])
+        if colmap.get("anio") in df.columns
+        else pd.Series(False, index=df.index)
+    )
+    bases["2014_2017"] = analisis_corte(df, colmap, "2014_2017", mask_1417, decisiones)
 
     resumen = construir_resumen_hallazgos(bases, colmap)
     guardar_tabla(resumen, OUT_ROOT / "resumen_hallazgos_base.csv")
